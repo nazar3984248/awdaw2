@@ -1,11 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Отправка сообщения в Telegram</title>
 </head>
 <body>
-    
+    <h1>Введите сообщение для отправки в Telegram</h1>
+    <form id="myForm">
+        <input type="text" id="userInput" name="userInput" placeholder="Введите сообщение" required>
+        <button type="submit">Отправить</button>
+    </form>
+
+    <script>
+        document.getElementById("myForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            let userInput = document.getElementById("userInput").value;
+            fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: userInput })
+            }).then(response => response.json())
+              .then(data => alert(data.status));
+        });
+    </script>
 </body>
 </html>
