@@ -3,27 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Отправка сообщения в Telegram</title>
+    <title>Текстовая форма с AJAX</title>
 </head>
 <body>
-    <h1>Введите сообщение для отправки в Telegram</h1>
-    <form id="myForm">
-        <input type="text" id="userInput" name="userInput" placeholder="Введите сообщение" required>
+    <h1>Введите текст</h1>
+    <form id="textForm">
+        <label for="user_input">Введите текст:</label>
+        <input type="text" id="user_input" name="user_input" placeholder="Введите текст" required>
         <button type="submit">Отправить</button>
     </form>
 
+    <p id="responseText"></p>
+
     <script>
-        document.getElementById("myForm").addEventListener("submit", function(e) {
-            e.preventDefault();
-            let userInput = document.getElementById("userInput").value;
-            fetch('/send_message', {
+        document.getElementById('textForm').addEventListener('submit', function(event) {
+            event.preventDefault();  // Отменяем стандартную отправку формы
+
+            const userInput = document.getElementById('user_input').value;
+
+            // Отправляем данные через fetch (AJAX)
+            fetch('/submit', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message: userInput })
-            }).then(response => response.json())
-              .then(data => alert(data.status));
+                body: JSON.stringify({ user_input: userInput })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Выводим ответ от сервера на странице
+                document.getElementById('responseText').textContent = 'Вы отправили: ' + data.response;
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+            });
         });
     </script>
 </body>
